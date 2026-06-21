@@ -12,7 +12,7 @@ class Procomic : ParsedHttpSource() {
 
     override val name = "Procomic"
     override val baseUrl = "https://procomic.pro/"
-    override val lang = "ar"
+    override val lang = "AR"
     override val supportsLatest = true
     override val client = network.cloudflareClient
 

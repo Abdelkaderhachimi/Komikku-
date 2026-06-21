@@ -10,9 +10,9 @@ import java.util.*
 
 class Procomic : ParsedHttpSource() {
 
-    override val name = "Procomic"
+    override val name = "procomic"
     override val baseUrl = "https://procomic.pro/"
-    override val lang = "AR"
+    override val lang = "ar"
     override val supportsLatest = true
     override val client = network.cloudflareClient
 

@@ -1,319 +1,160 @@
-package ar.procomic
+package eu.kanade.tachiyomi.extension.ar.procomic
 
-import android.app.Application
-import android.content.SharedPreferences
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.asObservableSuccess
-import eu.kanade.tachiyomi.source.ConfigurableSource
-import eu.kanade.tachiyomi.source.model.Filter
-import eu.kanade.tachiyomi.source.model.FilterList
-import eu.kanade.tachiyomi.source.model.MangasPage
-import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.source.model.SChapter
-import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.source.online.HttpSource
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import okhttp3.FormBody
-import okhttp3.Headers
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import eu.kanade.tachiyomi.source.model.*
+import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
 
-class ProComic : HttpSource(), ConfigurableSource {
+class Procomic : ParsedHttpSource() {
 
-    override val name = "ProComic"
-    override val baseUrl = "https://procomic.pro"
-    private val apiUrl = "https://app.procomic.pro"
-    private val cdnUrl = "https://cdn2.procomic.pro"
-    
-    override val lang = "ar"
+    override val name = "Procomic"
+    override val baseUrl = "https://procomic.pro/"
+    override val lang = "AR"
     override val supportsLatest = true
+    override val client = network.cloudflareClient
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
+    // Preferences
+    private val preferences by lazy {
+        sourcePref.getSharedPreferences("source_${id}_prefs", 0)
     }
 
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    var customBaseUrl: String
+        get() = preferences.getString("custom_base_url", baseUrl) ?: baseUrl
+        set(value) = preferences.edit().putString("custom_base_url", value).apply()
+
+    var hidePaidChapters: Boolean
+        get() = preferences.getBoolean("hide_paid_chapters", true)
+        set(value) = preferences.edit().putBoolean("hide_paid_chapters", value).apply()
+
+    var safeBrowsing: Boolean
+        get() = preferences.getBoolean("safe_browsing", true)
+        set(value) = preferences.edit().putBoolean("safe_browsing", value).apply()
+
+    // Latest Updates
+    override fun latestUpdatesRequest(page: Int) = GET("$customBaseUrl/updates?page=$page", headers)
+
+    override fun latestUpdatesSelector() = "div.manga-item, article.comic-card, div.comic-box"
+
+    override fun latestUpdatesFromElement(element: Element) = SManga.create().apply {
+        setUrlWithoutDomain(element.select("a.manga-link, a.comic-link, h3 a").first()?.attr("href") ?: "")
+        title = element.select("h3.manga-title, h3.comic-title, .comic-name").text()
+        thumbnail_url = element.select("img.manga-cover, img.comic-thumb, img").first()?.attr("src") ?: ""
+        description = element.select("p.description, .comic-desc").text()
     }
 
-    override val client: OkHttpClient = network.client.newBuilder()
-        .addInterceptor { chain ->
-            val request = chain.request()
-            val authenticatedRequest = if (getAuthToken() != null) {
-                request.newBuilder()
-                    .header("Authorization", "Bearer ${getAuthToken()}")
-                    .build()
-            } else {
-                request
-            }
-            chain.proceed(authenticatedRequest)
-        }
-        .build()
+    override fun latestUpdatesNextPageSelector() = "a.next-page, a[rel=next], .pagination a:last-child"
 
-    override fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .add("Accept", "application/json, text/plain, */*")
-        .add("Accept-Language", "ar,en-US;q=0.9,en;q=0.8")
-        .add("Referer", "$baseUrl/")
+    // Popular Manga
+    override fun popularMangaRequest(page: Int) = GET("$customBaseUrl/popular?page=$page", headers)
 
-    // ========== Popular Manga ==========
-    override fun popularMangaRequest(page: Int): Request {
-        return GET("$apiUrl/api/content?page=$page&limit=20", headers)
-    }
+    override fun popularMangaSelector() = "div.manga-item, article.comic-card, div.comic-box"
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        val data = json.decodeFromString<ContentResponse>(response.body!!.string())
-        val mangas = data.data.map { it.toSManga() }
-        return MangasPage(mangas, data.meta.page < data.meta.pages)
-    }
+    override fun popularMangaFromElement(element: Element) = latestUpdatesFromElement(element)
 
-    // ========== Latest Updates ==========
-    override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$apiUrl/api/content?page=$page&limit=20&sortBy=updated_at&order=desc", headers)
-    }
+    override fun popularMangaNextPageSelector() = "a.next-page, a[rel=next], .pagination a:last-child"
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        return popularMangaParse(response)
-    }
-
-    // ========== Search ==========
+    // Search
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val filterList = filters.filterIsInstance<ContentTypeFilter>()
-        val type = filterList.firstOrNull()?.selected?.value ?: ""
+        return GET("$customBaseUrl/search?q=${query.replace(" ", "+")}&page=$page", headers)
+    }
+
+    override fun searchMangaSelector() = "div.manga-item, article.comic-card, div.comic-box"
+
+    override fun searchMangaFromElement(element: Element) = latestUpdatesFromElement(element)
+
+    override fun searchMangaNextPageSelector() = "a.next-page, a[rel=next], .pagination a:last-child"
+
+    // Manga Details
+    override fun mangaDetailsRequest(manga: SManga) = GET(customBaseUrl + manga.url, headers)
+
+    override fun mangaDetailsParse(document: Document) = SManga.create().apply {
+        title = document.select("h1.manga-title, h1.comic-title, .series-name").text()
+        author = document.select("div.author, span.author-name, .manga-author").text()
+        artist = document.select("div.artist, span.artist-name").text()
+        description = document.select("div.synopsis, div.description, .manga-description").text()
+        thumbnail_url = document.select("img.manga-cover, img.comic-poster, .series-cover").first()?.attr("src") ?: ""
         
-        val url = "$apiUrl/api/content".toHttpUrl().newBuilder()
-            .addQueryParameter("page", page.toString())
-            .addQueryParameter("limit", "20")
-        
-        if (query.isNotBlank()) {
-            url.addQueryParameter("q", query)
+        status = when {
+            document.select("span.status").text().contains("مستمر", ignoreCase = true) -> SManga.ONGOING
+            document.select("span.status").text().contains("مكتمل", ignoreCase = true) -> SManga.COMPLETED
+            else -> SManga.UNKNOWN
         }
-        
-        if (type.isNotBlank()) {
-            url.addQueryParameter("type", type)
+
+        val genres = document.select("a.genre-tag, span.genre, .manga-genre").map { it.text() }
+        genre = genres.joinToString(", ")
+    }
+
+    // Chapters
+    override fun chapterListRequest(manga: SManga) = GET(customBaseUrl + manga.url, headers)
+
+    override fun chapterListSelector() = "div.chapter-item, li.chapter-list-item, .chapter-row"
+
+    override fun chapterFromElement(element: Element) = SChapter.create().apply {
+        setUrlWithoutDomain(element.select("a.chapter-link, a.chapter-url").first()?.attr("href") ?: "")
+        name = element.select("span.chapter-num, .chapter-name, .chapter-title").text()
+        date_upload = parseDate(element.select("span.chapter-date, time, .chapter-time").attr("datetime"))
+
+        // Hide paid chapters if enabled
+        if (hidePaidChapters && element.select(".paid-badge, .locked-chapter, .premium-tag").isNotEmpty()) {
+            return@apply
         }
-        
-        return GET(url.build(), headers)
-    }
-
-    override fun searchMangaParse(response: Response): MangasPage {
-        return popularMangaParse(response)
-    }
-
-    // ========== Manga Details ==========
-    override fun mangaDetailsRequest(manga: SManga): Request {
-        val mangaId = manga.url.substringAfterLast("/")
-        return GET("$apiUrl/api/content?page=1&limit=1&q=$mangaId", headers)
-    }
-
-    override fun mangaDetailsParse(response: Response): SManga {
-        val data = json.decodeFromString<ContentResponse>(response.body!!.string())
-        return data.data.firstOrNull()?.toSManga() ?: SManga.create()
-    }
-
-    // ========== Chapter List ==========
-    override fun chapterListRequest(manga: SManga): Request {
-        val mangaId = manga.url.substringAfterLast("/")
-        return GET("$apiUrl/api/chapters?contentId=$mangaId&page=1&limit=100", headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
-        val data = json.decodeFromString<ChaptersResponse>(response.body!!.string())
-        return data.chapters.map { chapter ->
-            SChapter.create().apply {
-                url = "/api/chapters/${chapter.id}"
-                name = if (chapter.title != null) {
-                    "الفصل ${chapter.chapter_number}: ${chapter.title}"
-                } else {
-                    "الفصل ${chapter.chapter_number}"
-                }
-                chapter_number = chapter.chapter_number.toFloatOrNull() ?: 0f
-                date_upload = parseDate(chapter.created_at)
-                scanlator = chapter.translator
-            }
-        }.sortedByDescending { it.chapter_number }
-    }
-
-    // ========== Page List ==========
-    override fun pageListRequest(chapter: SChapter): Request {
-        val chapterId = chapter.url.substringAfterLast("/")
-        return GET("$apiUrl/api/chapters?id=$chapterId", headers)
-    }
-
-    override fun pageListParse(response: Response): List<Page> {
-        val data = json.decodeFromString<ChaptersResponse>(response.body!!.string())
-        val chapter = data.chapters.firstOrNull() ?: return emptyList()
+        val document = response.asJsoup()
+        val chapters = document.select(chapterListSelector()).map { chapterFromElement(it) }
         
-        val cdn = chapter.cdn_path.replace("cdn", "cdn") // e.g., cdn2 -> cdn2
-        val baseImageUrl = "https://$cdn.procomic.pro"
-        
-        return chapter.metadata.images.mapIndexed { index, imagePath ->
-            Page(index, "", "$baseImageUrl$imagePath")
+        return if (hidePaidChapters) {
+            chapters.filter { it.name.isNotEmpty() }
+        } else {
+            chapters
         }
     }
 
-    override fun imageUrlParse(response: Response): String = ""
+    // Page List
+    override fun pageListRequest(chapter: SChapter) = GET(customBaseUrl + chapter.url, headers)
 
-    // ========== Filters ==========
-    override fun getFilterList(): FilterList {
-        return FilterList(
-            ContentTypeFilter()
-        )
-    }
+    override fun pageListParse(document: Document): List<Page> {
+        val pages = mutableListOf<Page>()
+        var pageIndex = 0
 
-    private class ContentTypeFilter : UriPartFilter(
-        "نوع المحتوى",
-        arrayOf(
-            Pair("الكل", ""),
-            Pair("مانها (صينية)", "manhua"),
-            Pair("مانهوا (كورية)", "manhwa"),
-            Pair("مانجا (يابانية)", "manga"),
-            Pair("رواية", "novel"),
-        )
-    )
-
-    private open class UriPartFilter(displayName: String, val vals: Array<Pair<String, String>>) :
-        Filter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
-        val selected: Pair<String, String>
-            get() = vals[state]
-    }
-
-    // ========== Login / WebView ==========
-    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
-        val tokenPref = androidx.preference.EditTextPreference(screen.context).apply {
-            key = "auth_token"
-            title = "رمز التحقق (Token)"
-            summary = "أدخل رمز التحقق من المتصفح بعد تسجيل الدخول"
-            setOnPreferenceChangeListener { _, newValue ->
-                preferences.edit().putString("auth_token", newValue as String).apply()
-                true
+        document.select("img.comic-page, img.chapter-image, img.reader-image, div.reader-image img").forEach { img ->
+            val imageUrl = img.attr("src").ifEmpty { img.attr("data-src") }
+            if (imageUrl.isNotEmpty()) {
+                pages.add(Page(pageIndex++, "", imageUrl))
             }
         }
-        screen.addPreference(tokenPref)
+
+        return pages
     }
 
-    private fun getAuthToken(): String? {
-        return preferences.getString("auth_token", null)
+    override fun imageUrlParse(document: Document) = ""
+
+    // Image URL Request with Referer
+    override fun imageRequest(page: Page): Request {
+        return Request.Builder()
+            .url(page.imageUrl!!)
+            .header("Referer", customBaseUrl)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .build()
     }
 
-    private fun authenticatedHeaders(): Headers {
-        val builder = headersBuilder()
-        getAuthToken()?.let { token ->
-            builder.add("Authorization", "Bearer $token")
-            builder.add("Cookie", "auth_token=$token")
-        }
-        return builder.build()
-    }
-
-    // ========== Helpers ==========
-    private fun parseDate(dateStr: String?): Long {
-        if (dateStr == null) return 0L
-        return try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).parse(dateStr)?.time ?: 0L
-        } catch (_: Exception) {
+    // Helper Functions
+    private fun parseDate(dateString: String): Long {
+        return if (dateString.isNotEmpty()) {
+            try {
+                val format = SimpleDateFormat("yyyy-MM-dd", Locale("ar"))
+                format.parse(dateString)?.time ?: 0L
+            } catch (e: Exception) {
+                0L
+            }
+        } else {
             0L
         }
     }
 
-    // ========== Data Classes ==========
-    @Serializable
-    data class ContentResponse(
-        val data: List<Series>,
-        val meta: Meta
-    )
-
-    @Serializable
-    data class Meta(
-        val total: Int,
-        val page: Int,
-        val limit: Int,
-        val pages: Int
-    )
-
-    @Serializable
-    data class Series(
-        val id: Int,
-        val title: String,
-        val slug: String,
-        val description: String? = null,
-        val type: String,
-        val progress: String? = null,
-        val thumbnail: String? = null,
-        val cdn_path: String? = null,
-        val metadata: SeriesMetadata? = null,
-        val updated_at: String? = null,
-        val series_views: Int = 0
-    ) {
-        fun toSManga(): SManga = SManga.create().apply {
-            url = "/series/$type/$id/$slug"
-            title = this@Series.title
-            thumbnail_url = this@Series.thumbnail
-            description = this@Series.description ?: this@Series.metadata?.descriptions?.ar
-            author = this@Series.metadata?.author
-            artist = this@Series.metadata?.artist
-            genre = this@Series.metadata?.genres?.joinToString(", ")
-            status = when (this@Series.progress) {
-                "مستمر" -> SManga.ONGOING
-                "مكتمل" -> SManga.COMPLETED
-                "متوقف" -> SManga.ON_HIATUS
-                else -> SManga.UNKNOWN
-            }
-        }
-    }
-
-    @Serializable
-    data class SeriesMetadata(
-        val author: String? = null,
-        val artist: String? = null,
-        val year: String? = null,
-        val origin: String? = null,
-        val genres: List<String>? = null,
-        val descriptions: Descriptions? = null,
-        val altTitles: List<String>? = null
-    )
-
-    @Serializable
-    data class Descriptions(
-        val ar: String? = null,
-        val en: String? = null
-    )
-
-    @Serializable
-    data class ChaptersResponse(
-        val chapters: List<Chapter>,
-        val total: Int? = null,
-        val hasMore: Boolean = false
-    )
-
-    @Serializable
-    data class Chapter(
-        val id: Int,
-        val content_id: Int,
-        val chapter_number: String,
-        val title: String? = null,
-        val language: String,
-        val translator: String? = null,
-        val status: String,
-        val cdn_path: String,
-        val metadata: ChapterMetadata,
-        val created_at: String? = null
-    )
-
-    @Serializable
-    data class ChapterMetadata(
-        val images: List<String>,
-        val closeHours: String? = null,
-        val lockDurationHours: String? = null,
-        val queueStage: String? = null
-    )
+    override fun getFilterList() = FilterList()
 }

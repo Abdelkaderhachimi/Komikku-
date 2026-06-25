@@ -16,7 +16,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 33
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
 
         buildConfigField "String", "EXTENSION_NAME", "\"${extName}\""
         buildConfigField "String", "EXTENSION_PACKAGE", "\"${extPackage}\""
@@ -85,4 +85,3 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
-gradlew assembleDebug 

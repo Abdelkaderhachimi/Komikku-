@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   update-jdks:
-    if: github.repository == 'gradle/gradle'
+    if: github.repository == 'komikku/gradle'
     permissions:
       contents: write
       pull-requests: write

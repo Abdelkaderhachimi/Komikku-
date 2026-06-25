@@ -9,7 +9,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class Procomic : ParsedHttpSource() {
-
     override val name = "Procomic"
     override val baseUrl = "https://procomic.pro/"
     override val lang = "ar"

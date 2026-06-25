@@ -26,12 +26,12 @@ runs:
   using: "composite"
   steps:
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v6
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::992382829881:role/GHASecrets_gradle_all
         aws-region: "eu-central-1"
     - name: Get bot token
-      uses: aws-actions/aws-secretsmanager-get-secrets@v3
+      uses: aws-actions/aws-secretsmanager-get-secrets@v4
       with:
         secret-ids: |
           BOT_GRADLE_GITHUB_TOKEN, gha/gradle/_all/BOT_GRADLE_GITHUB_TOKEN

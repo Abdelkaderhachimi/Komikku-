@@ -20,13 +20,15 @@ env:
 
 jobs:
   prepare:
-    name: Prepare job
+  
+   - name: Prepare job
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
     steps:
+    
       - name: Checkout PR
         uses: actions/checkout@v4
         with:
@@ -34,12 +36,14 @@ jobs:
           persist-credentials: false
 
       - id: generate-matrices
-        name: Generate build matrices
+      
+      - name: Generate build matrices
         run: |
           python ./.github/scripts/generate-build-matrices.py origin/main Release
 
   build:
-    name: Build extensions (${{ matrix.chunk.number }})
+  
+   - name: Build extensions (${{ matrix.chunk.number }})
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -47,6 +51,7 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
+    
       - name: Checkout PR
         uses: actions/checkout@v4
         with:
@@ -62,8 +67,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: true
-          
-- name: Grant execute permission for gradlew
+      
+      - name: Grant execute permission for gradlew
   run: chmod +x gradlew
   
       - name: Build extensions (${{ matrix.chunk.number }})
@@ -77,17 +82,20 @@ jobs:
         
         if: github.repository == 'keiyoushi/extensions-source'
         with:
-          name: individual-apks-${{ matrix.chunk.number }}
+        
+       - name: individual-apks-${{ matrix.chunk.number }}
           path: "**/*.apk"
           retention-days: 1
 
   inspect:
-    name: Inspect extensions
+  
+    - name: Inspect extensions
     needs: [prepare, build]
     if: github.repository == 'keiyoushi/extensions-source'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+    
       - name: Download APK artifacts
         uses: actions/download-artifact@v4
         with:

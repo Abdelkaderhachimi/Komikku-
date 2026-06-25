@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId "eu.kanade.tachiyomi.extension.ar.procomic"
-        minSdkVersion 24
+        minSdkVersion 21
         targetSdkVersion 34
         versionCode 1
         versionName "1.1"

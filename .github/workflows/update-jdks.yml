@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -61,5 +61,5 @@ jobs:
           body: |
             @bot-gradle test ReadyForNightly
             ```
-            stopGradleDaemons=true
+            stopGradleDaemons= false
             ```

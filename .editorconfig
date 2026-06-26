@@ -1,5 +1,5 @@
 # Editor configuration, see https://editorconfig.org
-root = true
+root = false 
 
 [*]
 insert_final_newline = true

@@ -42,14 +42,14 @@ loadAllIndividualExtensions()
 include(":core")
 
 // Load all modules under /lib
-File(rootDir, "lib").listFiles()?.filter { it.isDirectory }?.forEach { 
-    include("lib:${it.name}") 
-}
+// File(rootDir, "lib").listFiles()?.filter { it.isDirectory }?.forEach { 
+  //  include("lib:${it.name}") 
+//}
 
 // Load all modules under /lib-multisrc
-File(rootDir, "lib-multisrc").listFiles()?.filter { it.isDirectory }?.forEach { 
-    include("lib:${it.name}")
-}
+// File(rootDir, "lib-multisrc").listFiles()?.filter { it.isDirectory }?.forEach { 
+  //  include("lib:${it.name}")
+//}
 
 /**
  * ======================================== HELPER FUNCTION ========================================

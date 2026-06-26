@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 24
+          java-version: 21
       - id: determine-sys-prop-args
         uses: actions/github-script@v4
         with:
@@ -113,7 +113,7 @@ jobs:
           name: build-receipt.properties
           path: incoming-distributions/build-receipt.properties
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
       - run: ./gradlew ${{ matrix.bucket.tasks }} -DdisableLocalCache=true -PflakyTests=exclude ${{ needs.build.outputs.sys-prop-args }}

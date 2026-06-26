@@ -39,7 +39,7 @@ loadAllIndividualExtensions()
 /**
  * ===================================== COMMON CONFIGURATION ======================================
  */
-include(":core")
+//include(":core")
 
 // Load all modules under /lib
 // File(rootDir, "lib").listFiles()?.filter { it.isDirectory }?.forEach { 

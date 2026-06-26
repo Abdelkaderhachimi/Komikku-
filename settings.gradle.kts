@@ -54,15 +54,14 @@ File(rootDir, "lib-multisrc").listFiles()?.filter { it.isDirectory }?.forEach {
 /**
  * ======================================== HELPER FUNCTION ========================================
  */
- {
+fun loadAllIndividualExtensions() {
     File(rootDir, "src").listFiles()?.filter { it.isDirectory }?.forEach { dir ->
-    dir.listFiles()?.filter { it.isDirectory }?.forEach { subdir ->
-        include("src:${dir.name}:${subdir.name}")
-    }
-}
+        dir.listFiles()?.filter { it.isDirectory }?.forEach { subdir ->
+            include("src:${dir.name}:${subdir.name}")
         }
     }
 }
+
 fun loadIndividualExtension(lang: String, name: String) {
     include("src:$lang:$name")
 }

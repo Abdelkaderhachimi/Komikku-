@@ -2,7 +2,7 @@ ext {
     extName = 'Procomic'
     extPackage = 'eu.kanade.tachiyomi.extension.ar.procomic'
     extVersionCode = 1
-    libVersion = '1.2'
+    libVersion = '1.21'
 }
 apply plugin: 'kotlin-android'
 
@@ -14,7 +14,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 34
         versionCode 1
-        versionName "1.2"
+        versionName "1.21"
 
         buildConfigField "String", "EXTENSION_NAME", "\"${extName}\""
         buildConfigField "String", "EXTENSION_PACKAGE", "\"${extPackage}\""

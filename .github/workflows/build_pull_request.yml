@@ -3,10 +3,10 @@ name: PR check
 on:
   pull_request:
     paths:
-      - '**'
-      - '!**.md'
-      - '!.github/**'
-      - '.github/workflows/build_pull_request.yml'
+      - "**"
+      - "!**.md"
+      - "!.github/**"
+      - ".github/workflows/build_pull_request.yml"
 
 permissions: {}
 
@@ -20,15 +20,15 @@ env:
 
 jobs:
   prepare:
-  
-   - name: Prepare job
+    name: Prepare job
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
+
     steps:
-    
       - name: Checkout PR
         uses: actions/checkout@v4
         with:
@@ -36,22 +36,22 @@ jobs:
           persist-credentials: false
 
       - id: generate-matrices
-      
-      - name: Generate build matrices
+        name: Generate build matrices
         run: |
           python ./.github/scripts/generate-build-matrices.py origin/main Release
 
   build:
-  
-   - name: Build extensions (${{ matrix.chunk.number }})
+    name: Build extensions (${{ matrix.chunk.number }})
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     if: needs.prepare.outputs.matrix != '' && fromJson(needs.prepare.outputs.matrix).chunk[0] != null
+
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
     steps:
-    
       - name: Checkout PR
         uses: actions/checkout@v4
         with:
@@ -60,44 +60,43 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: 21
           distribution: temurin
+          java-version: "21"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: true
-      
-      
-  
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Build extensions (${{ matrix.chunk.number }})
         env:
-        
-        - name: Grant execute permission for gradlew
-  run: chmod +x gradlew
           MODULES: ${{ join(matrix.chunk.modules, ' ') }}
         run: |
           ./gradlew $MODULES
 
       - name: Upload APKs (${{ matrix.chunk.number }})
-        uses: actions/upload-artifact@v4
-        
         if: github.repository == 'keiyoushi/extensions-source'
+        uses: actions/upload-artifact@v4
         with:
-        
-       - name: individual-apks-${{ matrix.chunk.number }}
+          name: individual-apks-${{ matrix.chunk.number }}
           path: "**/*.apk"
           retention-days: 1
 
   inspect:
-  
-    - name: Inspect extensions
-    needs: [prepare, build]
-    f: github.repository == 'keiyoushi/extensions-source'
+    name: Inspect extensions
+    needs:
+      - prepare
+      - build
+
+    if: github.repository == 'keiyoushi/extensions-source'
+
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     steps:
-    
       - name: Download APK artifacts
         uses: actions/download-artifact@v4
         with:
@@ -108,14 +107,18 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: 21
           distribution: temurin
+          java-version: "21"
 
       - name: Run inspector
         run: |
           mkdir -p apk
           find ~/apk-artifacts -name "*.apk" -type f -exec mv {} apk/ \;
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
-          java -jar ./Inspector.jar "apk" "output.json" "tmp"
+
+          INSPECTOR_LINK="$(curl -s https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')"
+
+          curl -L "$INSPECTOR_LINK" -o Inspector.jar
+
+          java -jar Inspector.jar apk output.json tmp
+
           jq . output.json

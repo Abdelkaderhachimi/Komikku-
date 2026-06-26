@@ -5,7 +5,6 @@ ext {
     libVersion = '1.2'
 }
 
-apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {

@@ -2,7 +2,7 @@ ext {
     extName = 'Procomic'
     extPackage = 'eu.kanade.tachiyomi.extension.ar.procomic'
     extVersionCode = 1
-    libVersion = '1.1'
+    libVersion = '1.2'
 }
 
 apply plugin: 'com.android.application'
@@ -16,7 +16,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 34
         versionCode 1
-        versionName "1.1"
+        versionName "1.2"
 
         buildConfigField "String", "EXTENSION_NAME", "\"${extName}\""
         buildConfigField "String", "EXTENSION_PACKAGE", "\"${extPackage}\""

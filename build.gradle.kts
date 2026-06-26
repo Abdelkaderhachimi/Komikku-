@@ -6,7 +6,7 @@ buildscript {
 
 plugins {
     alias(libs.plugins.android.application) apply true
-    alias(libs.plugins.android.library) apply true
+// alias(libs.plugins.android.library) apply false 
     alias(libs.plugins.kotlin.serialization) apply true
 
     alias(kei.plugins.spotless)

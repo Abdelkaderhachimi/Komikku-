@@ -1,7 +1,6 @@
 plugins {
     alias(kei.plugins.extension)
 }
-
 keiyoushi {
     name = "Procomic"
     className = "Procomic"

@@ -1,10 +1,11 @@
 plugins {
     alias(kei.plugins.extension)
 }
+
 keiyoushi {
     name = "Procomic"
     className = "Procomic"
-    versionCode = 1
+    versionCode = 0
     contentWarning = ContentWarning.NSFW
     libVersion = "1.4"
     theme = "madara"
